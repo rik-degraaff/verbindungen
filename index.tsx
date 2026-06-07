@@ -46,6 +46,11 @@ type WrongGuess = {
   oneAway: boolean;
 };
 
+type Point = {
+  x: number;
+  y: number;
+};
+
 const CATEGORY_COLORS = ['#f9df6d', '#a0c35a', '#b0c4ef', '#ba81c5'] as const;
 const LONG_PRESS_MS = 260;
 
@@ -96,9 +101,13 @@ export default function App() {
   const [draggingTileId, setDraggingTileId] = useState<string | null>(null);
   const [dragOriginIndex, setDragOriginIndex] = useState<number | null>(null);
   const [dragOverTileId, setDragOverTileId] = useState<string | null>(null);
+  const [dragPointer, setDragPointer] = useState<Point | null>(null);
+  const [dragTileSize, setDragTileSize] = useState<{ width: number; height: number } | null>(null);
 
   const longPressTimeoutRef = useRef<number | null>(null);
   const pressedTileIdRef = useRef<string | null>(null);
+  const pressPointerRef = useRef<Point | null>(null);
+  const pressTileSizeRef = useRef<{ width: number; height: number } | null>(null);
 
   const shuffleArray = <T,>(array: T[]): T[] => {
     const newArray = [...array];
@@ -125,6 +134,8 @@ export default function App() {
     setDraggingTileId(null);
     setDragOriginIndex(null);
     setDragOverTileId(null);
+    setDragPointer(null);
+    setDragTileSize(null);
   };
 
   const startGame = (puzzleId: number, shouldPushPath = true) => {
@@ -307,6 +318,9 @@ export default function App() {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
     pressedTileIdRef.current = tileId;
+    pressPointerRef.current = { x: e.clientX, y: e.clientY };
+    const tileRect = e.currentTarget.getBoundingClientRect();
+    pressTileSizeRef.current = { width: tileRect.width, height: tileRect.height };
     clearLongPress();
 
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -314,11 +328,15 @@ export default function App() {
       setDraggingTileId(tileId);
       setDragOriginIndex(tileIndex);
       setDragOverTileId(null);
+      setDragPointer(pressPointerRef.current);
+      setDragTileSize(pressTileSizeRef.current);
     }, LONG_PRESS_MS);
   };
 
   const handleTilePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (!draggingTileId) return;
+
+    setDragPointer({ x: e.clientX, y: e.clientY });
 
     const hoveredTileId = findHoveredTileId(e.clientX, e.clientY);
     if (!hoveredTileId || hoveredTileId === draggingTileId) {
@@ -365,6 +383,8 @@ export default function App() {
   const handleTilePointerCancel = () => {
     clearLongPress();
     pressedTileIdRef.current = null;
+    pressPointerRef.current = null;
+    pressTileSizeRef.current = null;
     if (draggingTileId) {
       finishDrag(null);
     }
@@ -398,6 +418,7 @@ export default function App() {
   const activeTileIds = new Set(grid.map((tile) => tile.id));
   const hoveredGuess = wrongGuesses.find((guess) => guess.id === hoveredGuessId);
   const hoveredGuessTileIds = new Set((hoveredGuess?.tileIds ?? []).filter((tileId) => activeTileIds.has(tileId)));
+  const draggedTile = draggingTileId ? grid.find((tile) => tile.id === draggingTileId) ?? null : null;
 
   const renderPlaying = () => (
     <div className="w-full max-w-2xl mx-auto px-4 py-8 flex flex-col items-center select-none relative pb-20">
@@ -557,6 +578,21 @@ export default function App() {
       {toast && (
         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 bg-black text-white px-6 py-3 rounded-md shadow-lg z-50 text-sm font-medium">
           {toast}
+        </div>
+      )}
+
+      {draggedTile && dragPointer && dragTileSize && (
+        <div
+          className="fixed pointer-events-none z-[70] rounded-xl font-bold text-center break-words shadow-xl uppercase p-2 flex items-center justify-center bg-stone-700 text-white opacity-60"
+          style={{
+            width: `${dragTileSize.width}px`,
+            height: `${dragTileSize.height}px`,
+            left: `${dragPointer.x}px`,
+            top: `${dragPointer.y}px`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <span className="text-[clamp(0.62rem,1.9vw,1rem)] leading-tight">{draggedTile.word}</span>
         </div>
       )}
     </div>
