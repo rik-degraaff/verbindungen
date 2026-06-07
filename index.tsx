@@ -2,6 +2,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import puzzles from './puzzles.json';
 import {
   computeTutorialStep,
+  getClosedTutorialHint,
+  getExpectedTutorialCategoryId,
   TutorialModal,
   TutorialState,
   TUTORIAL_CATEGORY_ORDER,
@@ -247,6 +249,7 @@ export default function App() {
   const pressedTileIdRef = useRef<string | null>(null);
   const pressPointerRef = useRef<Point | null>(null);
   const pressTileSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const previousTutorialStepRef = useRef<TutorialState['step']>('welcome');
 
   const shuffleArray = <T,>(array: T[]): T[] => {
     const newArray = [...array];
@@ -351,6 +354,18 @@ export default function App() {
     return () => clearLongPress();
   }, []);
 
+  useEffect(() => {
+    if (!tutorialState.active) {
+      previousTutorialStepRef.current = tutorialState.step;
+      return;
+    }
+
+    if (previousTutorialStepRef.current !== tutorialState.step) {
+      previousTutorialStepRef.current = tutorialState.step;
+      setTutorialState((prev) => (prev.visible ? prev : { ...prev, visible: true }));
+    }
+  }, [tutorialState.active, tutorialState.step]);
+
   const handleShuffle = () => {
     if (draggingTileId) return;
     setGrid(shuffleArray(grid));
@@ -420,8 +435,26 @@ export default function App() {
       const newSolved = [...solvedCategories, solvedCategoryId];
       const nextTutorialCategory = TUTORIAL_CATEGORY_ORDER.find((categoryId) => !solvedCategories.includes(categoryId)) ?? null;
 
-      if (tutorialState.active && nextTutorialCategory && solvedCategoryId !== nextTutorialCategory) {
-        showToast('du bist schon voraus ;)');
+      if (tutorialState.active) {
+        const expectedCategoryId = getExpectedTutorialCategoryId(
+          solvedCategories,
+          tutorialState.didShuffle,
+          tutorialState.didDragSwap
+        );
+
+        if (expectedCategoryId === null) {
+          showToast('Nutze zuerst einmal Ziehen/Tauschen und einmal ↻.');
+          return;
+        }
+
+        if (solvedCategoryId !== expectedCategoryId) {
+          if (nextTutorialCategory && solvedCategoryId !== nextTutorialCategory) {
+            showToast('Diese Gruppe kommt später im Tutorial.');
+          } else {
+            showToast('Diese Gruppe ist jetzt noch nicht dran.');
+          }
+          return;
+        }
       }
 
       setSolvedCategories(newSolved);
@@ -647,15 +680,13 @@ export default function App() {
 
   const tutorialObjective = () => {
     if (!tutorialState.active) return null;
-    if (!tutorialState.firstGuessMade) return 'Nächster Schritt: APFEL, LAMPE, LATERNE, NEON prüfen.';
-    if (!solvedCategories.includes('cat-0')) return 'Nächster Schritt: löse die Früchte-Gruppe.';
-    if (!tutorialState.didDragSwap || !tutorialState.didShuffle) {
-      return 'Nächster Schritt: einmal ziehen/tauschen und einmal ↻ drücken.';
-    }
-    if (!solvedCategories.includes('cat-1')) return 'Nächster Schritt: löse die nächste Gruppe.';
-    if (!solvedCategories.includes('cat-2')) return 'Nächster Schritt: finde das nächste Muster.';
-    if (!solvedCategories.includes('cat-3')) return 'Nächster Schritt: letzte Gruppe lösen.';
-    return 'Tutorial abgeschlossen.';
+    return getClosedTutorialHint(
+      tutorialState.step,
+      solvedCategories,
+      tutorialState.didShuffle,
+      tutorialState.didDragSwap,
+      tutorialState.firstGuessMade
+    );
   };
 
   const getPuzzleByTutorial = (): Category[] | null => {
@@ -908,6 +939,8 @@ export default function App() {
       {tutorialState.active && tutorialState.visible && (
         <TutorialModal
           step={tutorialState.step}
+          didShuffle={tutorialState.didShuffle}
+          didDragSwap={tutorialState.didDragSwap}
           onClose={closeTutorialModal}
         />
       )}

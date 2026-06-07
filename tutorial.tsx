@@ -14,6 +14,74 @@ export type TutorialState = {
 export const TUTORIAL_TARGET_WORDS = ['APFEL', 'LAMPE', 'LATERNE', 'NEON'] as const;
 export const TUTORIAL_CATEGORY_ORDER = ['cat-0', 'cat-1', 'cat-2', 'cat-3'] as const;
 
+type TutorialColorKey = 'yellow' | 'green' | 'blue' | 'purple';
+
+export const TUTORIAL_COLOR_GUIDE: Record<TutorialColorKey, { label: string; hint: string; categoryType: string }> = {
+  yellow: {
+    label: 'Gelb',
+    hint: 'Denk an typische Obstsorten.',
+    categoryType: 'Direkte Oberkategorie (gleiche Art von Dingen).',
+  },
+  green: {
+    label: 'Grün',
+    hint: 'Such Dinge, die mit Wasser zu tun haben.',
+    categoryType: 'Thema/Anwendungsfeld (gleicher Kontext).',
+  },
+  blue: {
+    label: 'Blau',
+    hint: 'Finde Wörter, die mit Leuchten zusammenhängen.',
+    categoryType: 'Muster oder Wortfeld (nicht nur offensichtliche Synonyme).',
+  },
+  purple: {
+    label: 'Lila',
+    hint: 'Bleiben Präpositionen oder Funktionswörter übrig?',
+    categoryType: 'Sprachstruktur/Grammatik statt Objektkategorie.',
+  },
+};
+
+export const getExpectedTutorialCategoryId = (
+  solvedCategoryIds: string[],
+  didShuffle: boolean,
+  didDragSwap: boolean
+): string | null => {
+  if (!solvedCategoryIds.includes('cat-0')) return 'cat-0';
+  if (!didShuffle || !didDragSwap) return null;
+  if (!solvedCategoryIds.includes('cat-1')) return 'cat-1';
+  if (!solvedCategoryIds.includes('cat-2')) return 'cat-2';
+  if (!solvedCategoryIds.includes('cat-3')) return 'cat-3';
+  return null;
+};
+
+export const getClosedTutorialHint = (
+  step: TutorialStep,
+  solvedCategoryIds: string[],
+  didShuffle: boolean,
+  didDragSwap: boolean,
+  firstGuessMade: boolean
+): string => {
+  if (!firstGuessMade) return 'Hinweis Start: APFEL, LAMPE, LATERNE, NEON. Wichtig: genau diese 4 prüfen.';
+
+  const solved = new Set(solvedCategoryIds);
+  if (!solved.has('cat-0')) {
+    return `Hinweis ${TUTORIAL_COLOR_GUIDE.yellow.label}: ${TUTORIAL_COLOR_GUIDE.yellow.hint} Typ: ${TUTORIAL_COLOR_GUIDE.yellow.categoryType}`;
+  }
+  if (!didShuffle || !didDragSwap) {
+    return `Hinweis ${TUTORIAL_COLOR_GUIDE.green.label}: ${TUTORIAL_COLOR_GUIDE.green.hint} Wichtig: 1x ziehen/tauschen und 1x ↻.`;
+  }
+  if (!solved.has('cat-1')) {
+    return `Hinweis ${TUTORIAL_COLOR_GUIDE.green.label}: ${TUTORIAL_COLOR_GUIDE.green.hint} Typ: ${TUTORIAL_COLOR_GUIDE.green.categoryType}`;
+  }
+  if (!solved.has('cat-2')) {
+    return `Hinweis ${TUTORIAL_COLOR_GUIDE.blue.label}: ${TUTORIAL_COLOR_GUIDE.blue.hint} Typ: ${TUTORIAL_COLOR_GUIDE.blue.categoryType}`;
+  }
+  if (!solved.has('cat-3')) {
+    return `Hinweis ${TUTORIAL_COLOR_GUIDE.purple.label}: ${TUTORIAL_COLOR_GUIDE.purple.hint} Typ: ${TUTORIAL_COLOR_GUIDE.purple.categoryType}`;
+  }
+
+  if (step === 'completed') return 'Tutorial abgeschlossen.';
+  return 'Hinweis: Prüfe die nächste Gruppe.';
+};
+
 export const computeTutorialStep = (
   firstGuessMade: boolean,
   solvedCategoryIds: string[],
@@ -34,6 +102,8 @@ export const computeTutorialStep = (
 interface TutorialModalProps {
   step: TutorialStep;
   onClose: () => void;
+  didShuffle: boolean;
+  didDragSwap: boolean;
 }
 
 const HandHint: React.FC<{ motion: 'tap' | 'drag' }> = ({ motion }) => {
@@ -67,6 +137,15 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
             <HandHint motion="tap" />
             <TargetWords />
           </div>
+          <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-3">
+            <p className="font-semibold">Hinweise pro Farbe:</p>
+            <ul className="space-y-1 text-xs leading-snug">
+              <li><strong>Gelb:</strong> {TUTORIAL_COLOR_GUIDE.yellow.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.yellow.categoryType}</li>
+              <li><strong>Grün:</strong> {TUTORIAL_COLOR_GUIDE.green.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.green.categoryType}</li>
+              <li><strong>Blau:</strong> {TUTORIAL_COLOR_GUIDE.blue.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.blue.categoryType}</li>
+              <li><strong>Lila:</strong> {TUTORIAL_COLOR_GUIDE.purple.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.purple.categoryType}</li>
+            </ul>
+          </div>
           <p>Dann schließe das Fenster und prüfe genau diese vier.</p>
         </div>
       );
@@ -76,7 +155,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Genau so sieht ein fast richtiger Versuch aus: drei passen zusammen, einer nicht.</p>
-          <p>Jetzt löst du die einfache Gruppe im Feld.</p>
+          <p><strong>Hinweis Gelb:</strong> {TUTORIAL_COLOR_GUIDE.yellow.hint}</p>
+          <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.yellow.categoryType}</p>
         </div>
       );
       break;
@@ -84,6 +164,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       title = 'Werkzeuge nutzen';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
+          <p><strong>Hinweis Grün:</strong> {TUTORIAL_COLOR_GUIDE.green.hint}</p>
+          <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.green.categoryType}</p>
           <p>Bevor es weitergeht: nutze beide Hilfen einmal.</p>
           <div className="flex items-center gap-3 rounded-2xl bg-stone-100 p-3">
             <HandHint motion="drag" />
@@ -92,7 +174,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
               <p>Drücke danach einmal auf ↻ zum Mischen.</p>
             </div>
           </div>
-          <p>Dann löse die nächste Gruppe.</p>
+          <p>Erst danach wird die nächste richtige Gruppe akzeptiert.</p>
         </div>
       );
       break;
@@ -101,7 +183,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Gut. Zwei Gruppen sind geschafft.</p>
-          <p>Jetzt suche die Wörter, die mit demselben Muster zusammenhängen.</p>
+          <p><strong>Hinweis Blau:</strong> {TUTORIAL_COLOR_GUIDE.blue.hint}</p>
+          <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.blue.categoryType}</p>
         </div>
       );
       break;
@@ -109,8 +192,9 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       title = 'Letzte Gruppe';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Nur noch vier Wörter. Wenn du die letzte Gruppe siehst, ist das Rätsel durch.</p>
-          <p>Wenn du festhängst, hol dir das Fenster mit der Glühbirne zurück.</p>
+          <p>Nur noch vier Wörter.</p>
+          <p><strong>Hinweis Lila:</strong> {TUTORIAL_COLOR_GUIDE.purple.hint}</p>
+          <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.purple.categoryType}</p>
         </div>
       );
       break;
