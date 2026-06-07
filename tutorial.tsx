@@ -1,6 +1,15 @@
 import React from 'react';
 
-export type TutorialStep = 'welcome' | 'first-feedback' | 'after-yellow' | 'after-green' | 'after-blue' | 'completed';
+export type TutorialStep =
+  | 'welcome'
+  | 'first-feedback'
+  | 'shuffle-step'
+  | 'reorder-step'
+  | 'green-guess'
+  | 'failed-guess-replay'
+  | 'blue-guess'
+  | 'purple-intro'
+  | 'completed';
 
 export type TutorialState = {
   active: boolean;
@@ -9,6 +18,8 @@ export type TutorialState = {
   firstGuessMade: boolean;
   didShuffle: boolean;
   didDragSwap: boolean;
+  didReplayFailedGuess: boolean;
+  initialFailedGuessId: string | null;
 };
 
 export const TUTORIAL_TARGET_WORDS = ['APFEL', 'LAMPE', 'LATERNE', 'NEON'] as const;
@@ -34,19 +45,21 @@ export const TUTORIAL_COLOR_GUIDE: Record<TutorialColorKey, { label: string; hin
   },
   purple: {
     label: 'Lila',
-    hint: 'Bleiben Präpositionen oder Funktionswörter übrig?',
-    categoryType: 'Sprachstruktur/Grammatik statt Objektkategorie.',
+    hint: 'Achte auf sehr indirekte sprachliche Beziehungen.',
+    categoryType: 'Meta-/Wortform-Verbindungen statt offensichtlicher Sachgruppen.',
   },
 };
 
 export const getExpectedTutorialCategoryId = (
   solvedCategoryIds: string[],
   didShuffle: boolean,
-  didDragSwap: boolean
+  didDragSwap: boolean,
+  didReplayFailedGuess: boolean
 ): string | null => {
   if (!solvedCategoryIds.includes('cat-0')) return 'cat-0';
   if (!didShuffle || !didDragSwap) return null;
   if (!solvedCategoryIds.includes('cat-1')) return 'cat-1';
+  if (!didReplayFailedGuess) return null;
   if (!solvedCategoryIds.includes('cat-2')) return 'cat-2';
   if (!solvedCategoryIds.includes('cat-3')) return 'cat-3';
   return null;
@@ -57,7 +70,8 @@ export const getClosedTutorialHint = (
   solvedCategoryIds: string[],
   didShuffle: boolean,
   didDragSwap: boolean,
-  firstGuessMade: boolean
+  firstGuessMade: boolean,
+  didReplayFailedGuess: boolean
 ): string => {
   if (!firstGuessMade) return 'Hinweis Start: APFEL, LAMPE, LATERNE, NEON. Wichtig: genau diese 4 prüfen.';
 
@@ -65,11 +79,17 @@ export const getClosedTutorialHint = (
   if (!solved.has('cat-0')) {
     return `Hinweis ${TUTORIAL_COLOR_GUIDE.yellow.label}: ${TUTORIAL_COLOR_GUIDE.yellow.hint} Typ: ${TUTORIAL_COLOR_GUIDE.yellow.categoryType}`;
   }
-  if (!didShuffle || !didDragSwap) {
-    return `Hinweis ${TUTORIAL_COLOR_GUIDE.green.label}: ${TUTORIAL_COLOR_GUIDE.green.hint} Wichtig: 1x ziehen/tauschen und 1x ↻.`;
+  if (!didShuffle) {
+    return 'Wichtig: Drücke jetzt zuerst einmal auf ↻ (Mischen).';
+  }
+  if (!didDragSwap) {
+    return 'Wichtig: Verschiebe jetzt 1 Wort per langem Drücken und Ziehen.';
   }
   if (!solved.has('cat-1')) {
     return `Hinweis ${TUTORIAL_COLOR_GUIDE.green.label}: ${TUTORIAL_COLOR_GUIDE.green.hint} Typ: ${TUTORIAL_COLOR_GUIDE.green.categoryType}`;
+  }
+  if (!didReplayFailedGuess) {
+    return 'Wichtig: Tippe unten auf „APFEL, NEON, LATERNE, LAMPE“. Das wählt die noch verfügbaren Wörter.';
   }
   if (!solved.has('cat-2')) {
     return `Hinweis ${TUTORIAL_COLOR_GUIDE.blue.label}: ${TUTORIAL_COLOR_GUIDE.blue.hint} Typ: ${TUTORIAL_COLOR_GUIDE.blue.categoryType}`;
@@ -86,16 +106,19 @@ export const computeTutorialStep = (
   firstGuessMade: boolean,
   solvedCategoryIds: string[],
   didShuffle: boolean,
-  didDragSwap: boolean
+  didDragSwap: boolean,
+  didReplayFailedGuess: boolean
 ): TutorialStep => {
   if (!firstGuessMade) return 'welcome';
 
   const solved = new Set(solvedCategoryIds);
   if (!solved.has('cat-0')) return 'first-feedback';
-  if (!didShuffle || !didDragSwap) return 'after-yellow';
-  if (!solved.has('cat-1')) return 'after-yellow';
-  if (!solved.has('cat-2')) return 'after-green';
-  if (!solved.has('cat-3')) return 'after-blue';
+  if (!didShuffle) return 'shuffle-step';
+  if (!didDragSwap) return 'reorder-step';
+  if (!solved.has('cat-1')) return 'green-guess';
+  if (!didReplayFailedGuess) return 'failed-guess-replay';
+  if (!solved.has('cat-2')) return 'blue-guess';
+  if (!solved.has('cat-3')) return 'purple-intro';
   return 'completed';
 };
 
@@ -160,39 +183,65 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
         </div>
       );
       break;
-    case 'after-yellow':
-      title = 'Werkzeuge nutzen';
+    case 'shuffle-step':
+      title = 'Schritt 1: Mischen';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p><strong>Hinweis Grün:</strong> {TUTORIAL_COLOR_GUIDE.green.hint}</p>
-          <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.green.categoryType}</p>
-          <p>Bevor es weitergeht: nutze beide Hilfen einmal.</p>
+          <p>Drücke jetzt einmal auf den ↻-Button.</p>
+          <p>Damit lernst du, wie du bei Blockaden neue Anordnungen erzeugst.</p>
+        </div>
+      );
+      break;
+    case 'reorder-step':
+      title = 'Schritt 2: Neu anordnen';
+      body = (
+        <div className="space-y-4 text-sm text-stone-700">
+          <p>Verschiebe jetzt genau ein Wort per langem Drücken und Ziehen.</p>
           <div className="flex items-center gap-3 rounded-2xl bg-stone-100 p-3">
             <HandHint motion="drag" />
             <div className="space-y-1">
               <p className="font-semibold">Lange drücken verschiebt ein Wort.</p>
-              <p>Drücke danach einmal auf ↻ zum Mischen.</p>
+              <p>Das hilft beim visuellen Sortieren von Ideen.</p>
             </div>
           </div>
-          <p>Erst danach wird die nächste richtige Gruppe akzeptiert.</p>
         </div>
       );
       break;
-    case 'after-green':
-      title = 'Halbzeit';
+    case 'green-guess':
+      title = 'Schritt 3: Grüne Gruppe';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Gut. Zwei Gruppen sind geschafft.</p>
+          <p>Jetzt darfst du die nächste Gruppe lösen.</p>
+          <p><strong>Hinweis Grün:</strong> {TUTORIAL_COLOR_GUIDE.green.hint}</p>
+          <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.green.categoryType}</p>
+        </div>
+      );
+      break;
+    case 'failed-guess-replay':
+      title = 'Vor Blau: Alten Versuch nutzen';
+      body = (
+        <div className="space-y-4 text-sm text-stone-700">
+          <p>Tippe jetzt unten auf deinen ersten Fehlversuch: „APFEL, NEON, LATERNE, LAMPE“.</p>
+          <p>Das wählt automatisch die Wörter aus, die davon noch verfügbar sind.</p>
+          <p>Wichtig: Die drei übrig gebliebenen Wörter müssen zusammengehören, weil der Versuch nur 1 daneben war.</p>
+        </div>
+      );
+      break;
+    case 'blue-guess':
+      title = 'Schritt 4: Blaue Gruppe';
+      body = (
+        <div className="space-y-4 text-sm text-stone-700">
           <p><strong>Hinweis Blau:</strong> {TUTORIAL_COLOR_GUIDE.blue.hint}</p>
           <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.blue.categoryType}</p>
         </div>
       );
       break;
-    case 'after-blue':
-      title = 'Letzte Gruppe';
+    case 'purple-intro':
+      title = 'Letzter Schritt: Lila';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Nur noch vier Wörter.</p>
+          <p>Ab hier kannst du im Tutorial nicht mehr verlieren.</p>
+          <p>Versuch zuerst selbst zu erkennen, was die letzte Kategorie sein könnte.</p>
           <p><strong>Hinweis Lila:</strong> {TUTORIAL_COLOR_GUIDE.purple.hint}</p>
           <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.purple.categoryType}</p>
         </div>

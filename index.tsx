@@ -243,6 +243,8 @@ export default function App() {
     firstGuessMade: false,
     didShuffle: false,
     didDragSwap: false,
+    didReplayFailedGuess: false,
+    initialFailedGuessId: null,
   });
 
   const longPressTimeoutRef = useRef<number | null>(null);
@@ -332,6 +334,8 @@ export default function App() {
       firstGuessMade: false,
       didShuffle: false,
       didDragSwap: false,
+      didReplayFailedGuess: false,
+      initialFailedGuessId: null,
     });
   };
 
@@ -376,7 +380,13 @@ export default function App() {
         return {
           ...prev,
           didShuffle: nextDidShuffle,
-          step: computeTutorialStep(prev.firstGuessMade, solvedCategories, nextDidShuffle, prev.didDragSwap),
+          step: computeTutorialStep(
+            prev.firstGuessMade,
+            solvedCategories,
+            nextDidShuffle,
+            prev.didDragSwap,
+            prev.didReplayFailedGuess
+          ),
         };
       });
     }
@@ -420,9 +430,12 @@ export default function App() {
       categoryCounts[tile.categoryId] = (categoryCounts[tile.categoryId] || 0) + 1;
     });
 
+    const targetWords = [...TUTORIAL_TARGET_WORDS].sort();
+    const isTutorialOpeningGuess =
+      tutorialState.active && !tutorialState.firstGuessMade && selectedWords.join('|') === targetWords.join('|');
+
     if (tutorialState.active && !tutorialState.firstGuessMade) {
-      const targetWords = [...TUTORIAL_TARGET_WORDS].sort();
-      if (selectedWords.join('|') !== targetWords.join('|')) {
+      if (!isTutorialOpeningGuess) {
         showToast('Nimm zuerst APFEL, LAMPE, LATERNE und NEON.');
         return;
       }
@@ -439,11 +452,20 @@ export default function App() {
         const expectedCategoryId = getExpectedTutorialCategoryId(
           solvedCategories,
           tutorialState.didShuffle,
-          tutorialState.didDragSwap
+          tutorialState.didDragSwap,
+          tutorialState.didReplayFailedGuess
         );
 
         if (expectedCategoryId === null) {
-          showToast('Nutze zuerst einmal Ziehen/Tauschen und einmal ↻.');
+          if (!tutorialState.didShuffle) {
+            showToast('Drücke zuerst auf ↻.');
+          } else if (!tutorialState.didDragSwap) {
+            showToast('Verschiebe zuerst ein Wort per Ziehen.');
+          } else if (!tutorialState.didReplayFailedGuess) {
+            showToast('Tippe zuerst unten auf den ersten Fehlversuch.');
+          } else {
+            showToast('Diese Gruppe ist jetzt noch nicht dran.');
+          }
           return;
         }
 
@@ -466,7 +488,13 @@ export default function App() {
         setTutorialState((prev) => ({
           ...prev,
           firstGuessMade: true,
-          step: computeTutorialStep(true, newSolved, prev.didShuffle, prev.didDragSwap),
+          step: computeTutorialStep(
+            true,
+            newSolved,
+            prev.didShuffle,
+            prev.didDragSwap,
+            prev.didReplayFailedGuess
+          ),
         }));
       }
 
@@ -478,7 +506,9 @@ export default function App() {
       const guessEntry: WrongGuess = {
         id: `${Date.now()}-${wrongGuesses.length}`,
         tileIds: [...selectedIds],
-        words: selectedTiles.map((tile) => stripBreakHints(tile.word)),
+        words: isTutorialOpeningGuess
+          ? ['APFEL', 'NEON', 'LATERNE', 'LAMPE']
+          : selectedTiles.map((tile) => stripBreakHints(tile.word)),
         oneAway: maxSameCategory === 3,
       };
       setWrongGuesses((prev) => [...prev, guessEntry]);
@@ -487,7 +517,14 @@ export default function App() {
         setTutorialState((prev) => ({
           ...prev,
           firstGuessMade: true,
-          step: computeTutorialStep(true, solvedCategories, prev.didShuffle, prev.didDragSwap),
+          initialFailedGuessId: guessEntry.id,
+          step: computeTutorialStep(
+            true,
+            solvedCategories,
+            prev.didShuffle,
+            prev.didDragSwap,
+            prev.didReplayFailedGuess
+          ),
         }));
       }
 
@@ -534,6 +571,24 @@ export default function App() {
     }
 
     setSelectedIds(inPlayIds.slice(0, 4));
+
+    if (tutorialState.active && tutorialState.initialFailedGuessId === guess.id && !tutorialState.didReplayFailedGuess) {
+      setTutorialState((prev) => {
+        const nextDidReplayFailedGuess = true;
+        return {
+          ...prev,
+          didReplayFailedGuess: nextDidReplayFailedGuess,
+          step: computeTutorialStep(
+            prev.firstGuessMade,
+            solvedCategories,
+            prev.didShuffle,
+            prev.didDragSwap,
+            nextDidReplayFailedGuess
+          ),
+        };
+      });
+      showToast('Gut! Diese 3 Wörter gehören sehr wahrscheinlich zusammen.');
+    }
   };
 
   const handleTilePointerDown = (
@@ -592,7 +647,13 @@ export default function App() {
             return {
               ...prev,
               didDragSwap: nextDidDragSwap,
-              step: computeTutorialStep(prev.firstGuessMade, solvedCategories, prev.didShuffle, nextDidDragSwap),
+              step: computeTutorialStep(
+                prev.firstGuessMade,
+                solvedCategories,
+                prev.didShuffle,
+                nextDidDragSwap,
+                prev.didReplayFailedGuess
+              ),
             };
           });
         }
@@ -636,6 +697,8 @@ export default function App() {
       firstGuessMade: false,
       didShuffle: false,
       didDragSwap: false,
+      didReplayFailedGuess: false,
+      initialFailedGuessId: null,
     });
     const tutorialCategories = getPuzzleByTutorial();
     if (tutorialCategories) {
@@ -685,7 +748,8 @@ export default function App() {
       solvedCategories,
       tutorialState.didShuffle,
       tutorialState.didDragSwap,
-      tutorialState.firstGuessMade
+      tutorialState.firstGuessMade,
+      tutorialState.didReplayFailedGuess
     );
   };
 
@@ -740,6 +804,7 @@ export default function App() {
   const hoveredGuess = wrongGuesses.find((guess) => guess.id === hoveredGuessId);
   const hoveredGuessTileIds = new Set((hoveredGuess?.tileIds ?? []).filter((tileId) => activeTileIds.has(tileId)));
   const draggedTile = draggingTileId ? grid.find((tile) => tile.id === draggingTileId) ?? null : null;
+  const tutorialTargetSet = new Set(TUTORIAL_TARGET_WORDS);
 
   const renderPlaying = () => (
     <div className="w-full max-w-2xl mx-auto px-4 py-8 flex flex-col items-center select-none relative pb-20">
@@ -769,6 +834,11 @@ export default function App() {
             const isDragged = draggingTileId === tile.id;
             const isDropCandidate = dragOverTileId === tile.id;
             const isGuessHoverHighlight = hoveredGuessTileIds.has(tile.id) && !isSelected;
+            const tileWord = stripBreakHints(tile.word);
+            const isTutorialWordHighlight =
+              tutorialState.active &&
+              tutorialState.step === 'welcome' &&
+              tutorialTargetSet.has(tileWord as (typeof TUTORIAL_TARGET_WORDS)[number]);
             return (
               <button
                 key={tile.id}
@@ -785,6 +855,7 @@ export default function App() {
                   isDragged ? 'opacity-60 z-10' : '',
                   isDropCandidate ? '-translate-y-1 ring-2 ring-stone-500' : '',
                   isGuessHoverHighlight ? 'ring-2 ring-amber-300/80 bg-amber-100' : '',
+                  isTutorialWordHighlight ? 'ring-2 ring-amber-500 ring-offset-1 bg-amber-100' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -814,7 +885,12 @@ export default function App() {
           disabled={gameState !== 'playing' || !!draggingTileId}
           aria-label="Mischen"
           title="Mischen"
-          className="border border-black rounded-full w-11 h-11 font-semibold text-base hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          className={[
+            'border border-black rounded-full w-11 h-11 font-semibold text-base hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center',
+            tutorialState.active && tutorialState.step === 'shuffle-step' ? 'ring-2 ring-amber-500 ring-offset-2 bg-amber-100' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           ↻
         </button>
@@ -830,7 +906,12 @@ export default function App() {
         <button
           onClick={handleSubmit}
           disabled={selectedIds.length !== 4 || gameState !== 'playing' || !!draggingTileId}
-          className="border border-black rounded-full px-6 py-3 font-semibold text-sm bg-transparent disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-400 enabled:bg-black enabled:text-white transition-colors"
+          className={[
+            'border border-black rounded-full px-6 py-3 font-semibold text-sm bg-transparent disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-400 enabled:bg-black enabled:text-white transition-colors',
+            tutorialState.active && tutorialState.step === 'welcome' ? 'ring-2 ring-amber-500 ring-offset-2' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           Prüfen
         </button>
@@ -865,7 +946,14 @@ export default function App() {
                 onFocus={() => setHoveredGuessId(guess.id)}
                 onBlur={() => setHoveredGuessId((current) => (current === guess.id ? null : current))}
                 onClick={() => handleGuessClick(guess)}
-                className="w-full text-left rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 transition-colors px-3 py-2"
+                className={[
+                  'w-full text-left rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 transition-colors px-3 py-2',
+                  tutorialState.active && tutorialState.step === 'failed-guess-replay' && guess.id === tutorialState.initialFailedGuessId
+                    ? 'ring-2 ring-amber-500 ring-offset-1 bg-amber-100'
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-medium text-stone-800 truncate">{guess.words.join(', ')}</div>
