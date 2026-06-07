@@ -239,6 +239,8 @@ export default function App() {
     visible: false,
     step: 'welcome',
     firstGuessMade: false,
+    didShuffle: false,
+    didDragSwap: false,
   });
 
   const longPressTimeoutRef = useRef<number | null>(null);
@@ -325,6 +327,8 @@ export default function App() {
       visible: false,
       step: 'welcome',
       firstGuessMade: false,
+      didShuffle: false,
+      didDragSwap: false,
     });
   };
 
@@ -350,6 +354,17 @@ export default function App() {
   const handleShuffle = () => {
     if (draggingTileId) return;
     setGrid(shuffleArray(grid));
+
+    if (tutorialState.active && !tutorialState.didShuffle) {
+      setTutorialState((prev) => {
+        const nextDidShuffle = true;
+        return {
+          ...prev,
+          didShuffle: nextDidShuffle,
+          step: computeTutorialStep(prev.firstGuessMade, solvedCategories, nextDidShuffle, prev.didDragSwap),
+        };
+      });
+    }
   };
 
   const toggleSelection = (id: string) => {
@@ -418,7 +433,7 @@ export default function App() {
         setTutorialState((prev) => ({
           ...prev,
           firstGuessMade: true,
-          step: computeTutorialStep(true, newSolved),
+          step: computeTutorialStep(true, newSolved, prev.didShuffle, prev.didDragSwap),
         }));
       }
 
@@ -439,7 +454,7 @@ export default function App() {
         setTutorialState((prev) => ({
           ...prev,
           firstGuessMade: true,
-          step: computeTutorialStep(true, solvedCategories),
+          step: computeTutorialStep(true, solvedCategories, prev.didShuffle, prev.didDragSwap),
         }));
       }
 
@@ -537,6 +552,17 @@ export default function App() {
         const swappedGrid = [...grid];
         [swappedGrid[fromIndex], swappedGrid[toIndex]] = [swappedGrid[toIndex], swappedGrid[fromIndex]];
         setGrid(swappedGrid);
+
+        if (tutorialState.active && !tutorialState.didDragSwap) {
+          setTutorialState((prev) => {
+            const nextDidDragSwap = true;
+            return {
+              ...prev,
+              didDragSwap: nextDidDragSwap,
+              step: computeTutorialStep(prev.firstGuessMade, solvedCategories, prev.didShuffle, nextDidDragSwap),
+            };
+          });
+        }
       }
     }
 
@@ -575,6 +601,8 @@ export default function App() {
       visible: true,
       step: 'welcome',
       firstGuessMade: false,
+      didShuffle: false,
+      didDragSwap: false,
     });
     const tutorialCategories = getPuzzleByTutorial();
     if (tutorialCategories) {
@@ -615,6 +643,19 @@ export default function App() {
         visible: false,
       };
     });
+  };
+
+  const tutorialObjective = () => {
+    if (!tutorialState.active) return null;
+    if (!tutorialState.firstGuessMade) return 'Nächster Schritt: APFEL, LAMPE, LATERNE, NEON prüfen.';
+    if (!solvedCategories.includes('cat-0')) return 'Nächster Schritt: löse die Früchte-Gruppe.';
+    if (!tutorialState.didDragSwap || !tutorialState.didShuffle) {
+      return 'Nächster Schritt: einmal ziehen/tauschen und einmal ↻ drücken.';
+    }
+    if (!solvedCategories.includes('cat-1')) return 'Nächster Schritt: löse die nächste Gruppe.';
+    if (!solvedCategories.includes('cat-2')) return 'Nächster Schritt: finde das nächste Muster.';
+    if (!solvedCategories.includes('cat-3')) return 'Nächster Schritt: letzte Gruppe lösen.';
+    return 'Tutorial abgeschlossen.';
   };
 
   const getPuzzleByTutorial = (): Category[] | null => {
@@ -760,7 +801,7 @@ export default function App() {
           disabled={selectedIds.length !== 4 || gameState !== 'playing' || !!draggingTileId}
           className="border border-black rounded-full px-6 py-3 font-semibold text-sm bg-transparent disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-400 enabled:bg-black enabled:text-white transition-colors"
         >
-          Prufen
+          Prüfen
         </button>
       </div>
 
@@ -849,14 +890,19 @@ export default function App() {
       )}
 
       {tutorialState.active && !tutorialState.visible && (
-        <button
-          onClick={() => setTutorialState((prev) => ({ ...prev, visible: true }))}
-          className="fixed right-4 top-4 z-[120] flex h-12 w-12 items-center justify-center rounded-full border border-amber-400 bg-amber-200 text-2xl text-amber-950 shadow-lg shadow-amber-400/25 transition-transform hover:-translate-y-0.5 hover:bg-amber-100"
-          aria-label="Tutorial anzeigen"
-          title="Tutorial anzeigen"
-        >
-          💡
-        </button>
+        <div className="fixed right-4 top-4 z-[120] flex items-start gap-2">
+          <button
+            onClick={() => setTutorialState((prev) => ({ ...prev, visible: true }))}
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-400 bg-amber-200 text-2xl text-amber-950 shadow-lg shadow-amber-400/25 transition-transform hover:-translate-y-0.5 hover:bg-amber-100"
+            aria-label="Tutorial anzeigen"
+            title="Tutorial anzeigen"
+          >
+            💡
+          </button>
+          <div className="max-w-[280px] rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 shadow-sm">
+            {tutorialObjective()}
+          </div>
+        </div>
       )}
 
       {tutorialState.active && tutorialState.visible && (
