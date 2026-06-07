@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import puzzles from './puzzles.json';
 
 const customStyles = `
@@ -84,6 +84,51 @@ const findHoveredTileId = (x: number, y: number): string | null => {
   const tileElement = hoveredElement?.closest('[data-tile-id]') as HTMLElement | null;
   return tileElement?.dataset.tileId ?? null;
 };
+
+function AutoFitTileWord({ word }: { word: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text) return;
+
+    const fit = () => {
+      let fontSize = 16;
+      const minFontSize = 9;
+
+      text.style.fontSize = `${fontSize}px`;
+      text.style.lineHeight = '1.1';
+
+      while (
+        fontSize > minFontSize &&
+        (text.scrollWidth > container.clientWidth || text.scrollHeight > container.clientHeight)
+      ) {
+        fontSize -= 1;
+        text.style.fontSize = `${fontSize}px`;
+      }
+    };
+
+    fit();
+
+    const observer = new ResizeObserver(() => fit());
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [word]);
+
+  return (
+    <div ref={containerRef} className="h-full w-full overflow-hidden px-1 py-1 flex items-center justify-center">
+      <span
+        ref={textRef}
+        className="block max-h-full w-full text-center font-bold leading-tight break-words [overflow-wrap:anywhere]"
+      >
+        {word}
+      </span>
+    </div>
+  );
+}
 
 export default function App() {
   const [gameState, setGameState] = useState<'select' | 'playing' | 'won' | 'lost'>('select');
@@ -461,8 +506,7 @@ export default function App() {
                 onPointerCancel={handleTilePointerCancel}
                 disabled={gameState !== 'playing'}
                 className={[
-                  'tile-transition touch-none aspect-square rounded-xl font-bold text-center break-words shadow-tile uppercase p-2 flex items-center justify-center',
-                  'text-[clamp(0.62rem,1.9vw,1rem)] leading-tight',
+                  'tile-transition touch-none aspect-square rounded-xl text-center shadow-tile uppercase p-3 flex items-center justify-center overflow-hidden',
                   shakeClass,
                   isSelected ? 'bg-stone-700 text-white' : 'bg-stone-200 text-stone-900 hover:bg-stone-300',
                   isDragged ? 'opacity-60 z-10' : '',
@@ -472,7 +516,7 @@ export default function App() {
                   .filter(Boolean)
                   .join(' ')}
               >
-                {tile.word}
+                <AutoFitTileWord word={tile.word} />
               </button>
             );
           })}
@@ -583,7 +627,7 @@ export default function App() {
 
       {draggedTile && dragPointer && dragTileSize && (
         <div
-          className="fixed pointer-events-none z-[70] rounded-xl font-bold text-center break-words shadow-xl uppercase p-2 flex items-center justify-center bg-stone-700 text-white opacity-60"
+          className="fixed pointer-events-none z-[70] rounded-xl text-center shadow-xl uppercase p-3 flex items-center justify-center bg-stone-700 text-white opacity-60 overflow-hidden"
           style={{
             width: `${dragTileSize.width}px`,
             height: `${dragTileSize.height}px`,
@@ -592,7 +636,7 @@ export default function App() {
             transform: 'translate(-50%, -50%)',
           }}
         >
-          <span className="text-[clamp(0.62rem,1.9vw,1rem)] leading-tight">{draggedTile.word}</span>
+          <AutoFitTileWord word={draggedTile.word} />
         </div>
       )}
     </div>
