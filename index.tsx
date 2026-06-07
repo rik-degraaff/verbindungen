@@ -85,9 +85,13 @@ const findHoveredTileId = (x: number, y: number): string | null => {
   return tileElement?.dataset.tileId ?? null;
 };
 
+const renderBreakHints = (word: string): string => word.replace(/\\-/g, '\u00ad');
+const stripBreakHints = (word: string): string => word.replace(/\\-/g, '');
+
 function AutoFitTileWord({ word }: { word: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
+  const renderedWord = renderBreakHints(word);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -95,9 +99,9 @@ function AutoFitTileWord({ word }: { word: string }) {
     if (!container || !text) return;
 
     const fit = () => {
-      const maxFontSize = 15;
-      const minFontSize = 9;
-      const breakThreshold = 11;
+      const maxFontSize = 13;
+      const minFontSize = 6;
+      const breakThreshold = 8;
       let fontSize = maxFontSize;
 
       text.style.lineHeight = '1.1';
@@ -106,6 +110,7 @@ function AutoFitTileWord({ word }: { word: string }) {
       text.style.whiteSpace = 'nowrap';
       text.style.overflowWrap = 'normal';
       text.style.wordBreak = 'normal';
+      text.style.hyphens = 'manual';
       text.style.fontSize = `${fontSize}px`;
 
       while (fontSize > breakThreshold && text.scrollWidth > container.clientWidth) {
@@ -113,11 +118,11 @@ function AutoFitTileWord({ word }: { word: string }) {
         text.style.fontSize = `${fontSize}px`;
       }
 
-      // Only allow hard wrapping as a last resort below threshold.
+      // Only allow wrapping at explicit soft-hyphen hints as a last resort below threshold.
       if (text.scrollWidth > container.clientWidth) {
         text.style.whiteSpace = 'normal';
-        text.style.overflowWrap = 'anywhere';
-        text.style.wordBreak = 'break-word';
+        text.style.overflowWrap = 'normal';
+        text.style.wordBreak = 'normal';
 
         while (
           fontSize > minFontSize &&
@@ -135,15 +140,15 @@ function AutoFitTileWord({ word }: { word: string }) {
     observer.observe(container);
 
     return () => observer.disconnect();
-  }, [word]);
+  }, [renderedWord]);
 
   return (
-    <div ref={containerRef} className="h-full w-full overflow-hidden px-1 py-1 flex items-center justify-center">
+    <div ref={containerRef} className="h-full w-full overflow-hidden px-0.5 py-0.5 flex items-center justify-center">
       <span
         ref={textRef}
-        className="block max-h-full w-full text-center font-bold leading-tight"
+        className="block max-h-full max-w-full text-center font-bold leading-tight"
       >
-        {word}
+        {renderedWord}
       </span>
     </div>
   );
@@ -328,7 +333,7 @@ export default function App() {
       const guessEntry: WrongGuess = {
         id: `${Date.now()}-${wrongGuesses.length}`,
         tileIds: [...selectedIds],
-        words: selectedTiles.map((tile) => tile.word),
+        words: selectedTiles.map((tile) => stripBreakHints(tile.word)),
         oneAway: maxSameCategory === 3,
       };
       setWrongGuesses((prev) => [...prev, guessEntry]);
@@ -508,7 +513,7 @@ export default function App() {
           );
         })}
 
-        <div className="grid grid-cols-4 gap-4 mt-2">
+        <div className="grid grid-cols-4 gap-2 mt-2">
           {grid.map((tile, index) => {
             const isSelected = selectedIds.includes(tile.id);
             const shakeClass = isShaking && isSelected ? 'animate-shake' : '';
@@ -525,7 +530,7 @@ export default function App() {
                 onPointerCancel={handleTilePointerCancel}
                 disabled={gameState !== 'playing'}
                 className={[
-                  'tile-transition touch-none aspect-square rounded-xl text-center shadow-tile uppercase p-3 flex items-center justify-center overflow-hidden',
+                  'tile-transition touch-none aspect-square rounded-xl text-center shadow-tile uppercase p-2 flex items-center justify-center overflow-hidden',
                   shakeClass,
                   isSelected ? 'bg-stone-700 text-white' : 'bg-stone-200 text-stone-900 hover:bg-stone-300',
                   isDragged ? 'opacity-60 z-10' : '',
@@ -554,20 +559,24 @@ export default function App() {
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap justify-center gap-3 w-full">
+      <div className="mt-6 flex flex-wrap justify-center gap-2 w-full">
         <button
           onClick={handleShuffle}
           disabled={gameState !== 'playing' || !!draggingTileId}
-          className="border border-black rounded-full px-6 py-3 font-semibold text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Mischen"
+          title="Mischen"
+          className="border border-black rounded-full w-11 h-11 font-semibold text-base hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         >
-          Mischen
+          ↻
         </button>
         <button
           onClick={handleDeselectAll}
           disabled={selectedIds.length === 0 || gameState !== 'playing' || !!draggingTileId}
-          className="border border-black rounded-full px-6 py-3 font-semibold text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Auswahl aufheben"
+          title="Auswahl aufheben"
+          className="border border-black rounded-full w-11 h-11 font-semibold text-base hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         >
-          Auswahl aufheben
+          ⊘
         </button>
         <button
           onClick={handleSubmit}
@@ -576,6 +585,9 @@ export default function App() {
         >
           Prufen
         </button>
+      </div>
+
+      <div className="mt-2 flex flex-wrap justify-center gap-2 w-full">
         <button
           onClick={handleShare}
           className="border border-black rounded-full px-6 py-3 font-semibold text-sm hover:bg-gray-100 transition-colors"
@@ -646,7 +658,7 @@ export default function App() {
 
       {draggedTile && dragPointer && dragTileSize && (
         <div
-          className="fixed pointer-events-none z-[70] rounded-xl text-center shadow-xl uppercase p-3 flex items-center justify-center bg-stone-700 text-white opacity-60 overflow-hidden"
+          className="fixed pointer-events-none z-[70] rounded-xl text-center shadow-xl uppercase p-2 flex items-center justify-center bg-stone-700 text-white opacity-60 overflow-hidden"
           style={{
             width: `${dragTileSize.width}px`,
             height: `${dragTileSize.height}px`,

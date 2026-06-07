@@ -1,14 +1,20 @@
 [
   [
-    { "desc": "GESTREIFT", "words": ["BIENE", "ZEBRA", "BARCODE", "ZUCKERSTANGE"] },
-    { "desc": "HÄUFIG GESTRICKT", "words": ["SOCKE", "MÜTZE", "DECKE", "SCHAL"] },
-    { "desc": "HERSTELLER VON SÜSSIGKEITEN", "words": ["KINDER", "STORCK", "RITTER", "MARS"] },
-    { "desc": "ENDEN MIT FAHRRADTEILE", "words": ["LICHTERKETTE", "JUNGLENKER", "WESTERNSATTEL", "DACHSE"] }
+    { "desc": "PFLANZEN", "words": ["ROSE", "TULPE", "LÖWEN\\-ZAHN", "GURKE"] },
+    { "desc": "WETTERLAGEN", "words": ["HEITER", "WECHSEL\\-HAFT", "VER\\-SCHNEIT", "NEBLIG"] },
+    { "desc": "FARBEN", "words": ["PLATIN", "KHAKI", "ORANGE", "LILA"] },
+    { "desc": "RÜCKWÄRTS GESCHRIEBENE TIERE", "words": ["LESE", "REBE", "HER", "UHU"] }
   ],
   [
-    { "desc": "SYMBOLE FÜR BABYS", "words": ["STORCH", "WINDEL", "SCHNULLER", "TEDDY"] },
-    { "desc": "KOSENAMEN", "words": ["BABY", "SPÄTZCHEN", "SCHATZ", "ENGEL"] },
+    { "desc": "GESTREIFT", "words": ["BIENE", "ZEBRA", "BAR\\-CODE", "ZUCKER\\-STANGE"] },
+    { "desc": "HÄUFIG GESTRICKT", "words": ["SOCKE", "MÜTZE", "DECKE", "SCHAL"] },
+    { "desc": "HERSTELLER VON SÜSSIGKEITEN", "words": ["KINDER", "STORCK", "RITTER", "MARS"] },
+    { "desc": "ENDEN MIT FAHRRADTEILE", "words": ["LICHTER\\-KETTE", "JUNG\\-LENKER", "WESTERN\\-SATTEL", "DACHSE"] }
+  ],
+  [
+    { "desc": "SYMBOLE FÜR BABYS", "words": ["STORCH", "WINDEL", "SCHNUL\\-LER", "TEDDY"] },
+    { "desc": "KOSENAMEN", "words": ["BABY", "SPÄTZ\\-CHEN", "SCHATZ", "ENGEL"] },
     { "desc": "NICKNAME FÜR AUTOS", "words": ["KÄFER", "ENTE", "BULLI", "TRABI"] },
-    { "desc": "WASSER_", "words": ["HAHN", "RUTSCHE", "SKI", "FALL"] }
+    { "desc": "WASSER_", "words": ["HAHN", "RUT\\-SCHE", "SKI", "FALL"] }
   ]
 ]
