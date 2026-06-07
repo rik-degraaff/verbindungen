@@ -95,18 +95,37 @@ function AutoFitTileWord({ word }: { word: string }) {
     if (!container || !text) return;
 
     const fit = () => {
-      let fontSize = 16;
+      const maxFontSize = 15;
       const minFontSize = 9;
+      const breakThreshold = 11;
+      let fontSize = maxFontSize;
 
-      text.style.fontSize = `${fontSize}px`;
       text.style.lineHeight = '1.1';
 
-      while (
-        fontSize > minFontSize &&
-        (text.scrollWidth > container.clientWidth || text.scrollHeight > container.clientHeight)
-      ) {
+      // Prefer a single unbroken line first.
+      text.style.whiteSpace = 'nowrap';
+      text.style.overflowWrap = 'normal';
+      text.style.wordBreak = 'normal';
+      text.style.fontSize = `${fontSize}px`;
+
+      while (fontSize > breakThreshold && text.scrollWidth > container.clientWidth) {
         fontSize -= 1;
         text.style.fontSize = `${fontSize}px`;
+      }
+
+      // Only allow hard wrapping as a last resort below threshold.
+      if (text.scrollWidth > container.clientWidth) {
+        text.style.whiteSpace = 'normal';
+        text.style.overflowWrap = 'anywhere';
+        text.style.wordBreak = 'break-word';
+
+        while (
+          fontSize > minFontSize &&
+          (text.scrollWidth > container.clientWidth || text.scrollHeight > container.clientHeight)
+        ) {
+          fontSize -= 1;
+          text.style.fontSize = `${fontSize}px`;
+        }
       }
     };
 
@@ -122,7 +141,7 @@ function AutoFitTileWord({ word }: { word: string }) {
     <div ref={containerRef} className="h-full w-full overflow-hidden px-1 py-1 flex items-center justify-center">
       <span
         ref={textRef}
-        className="block max-h-full w-full text-center font-bold leading-tight break-words [overflow-wrap:anywhere]"
+        className="block max-h-full w-full text-center font-bold leading-tight"
       >
         {word}
       </span>
