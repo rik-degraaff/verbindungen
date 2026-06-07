@@ -1,5 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import puzzles from './puzzles.json';
+import {
+  computeTutorialStep,
+  TutorialModal,
+  TutorialState,
+  TUTORIAL_CATEGORY_ORDER,
+  TUTORIAL_PUZZLE,
+  TUTORIAL_TARGET_WORDS,
+} from './tutorial';
 
 const customStyles = `
   @keyframes shake {
@@ -226,6 +234,12 @@ export default function App() {
   const [dragOverTileId, setDragOverTileId] = useState<string | null>(null);
   const [dragPointer, setDragPointer] = useState<Point | null>(null);
   const [dragTileSize, setDragTileSize] = useState<{ width: number; height: number } | null>(null);
+  const [tutorialState, setTutorialState] = useState<TutorialState>({
+    active: false,
+    visible: false,
+    step: 'welcome',
+    firstGuessMade: false,
+  });
 
   const longPressTimeoutRef = useRef<number | null>(null);
   const pressedTileIdRef = useRef<string | null>(null);
@@ -306,6 +320,12 @@ export default function App() {
     setMistakesRemaining(4);
     resetDragState();
     setGameState('select');
+    setTutorialState({
+      active: false,
+      visible: false,
+      step: 'welcome',
+      firstGuessMade: false,
+    });
   };
 
   useEffect(() => {
@@ -363,21 +383,44 @@ export default function App() {
     if (selectedIds.length !== 4 || draggingTileId) return;
 
     const selectedTiles = grid.filter((tile) => selectedIds.includes(tile.id));
+    const selectedWords = selectedTiles.map((tile) => stripBreakHints(tile.word)).sort();
     const categoryCounts: Record<string, number> = {};
 
     selectedTiles.forEach((tile) => {
       categoryCounts[tile.categoryId] = (categoryCounts[tile.categoryId] || 0) + 1;
     });
 
+    if (tutorialState.active && !tutorialState.firstGuessMade) {
+      const targetWords = [...TUTORIAL_TARGET_WORDS].sort();
+      if (selectedWords.join('|') !== targetWords.join('|')) {
+        showToast('Nimm zuerst APFEL, LAMPE, LATERNE und NEON.');
+        return;
+      }
+    }
+
     const maxSameCategory = Math.max(...Object.values(categoryCounts));
 
     if (maxSameCategory === 4) {
       const solvedCategoryId = selectedTiles[0].categoryId;
       const newSolved = [...solvedCategories, solvedCategoryId];
+      const nextTutorialCategory = TUTORIAL_CATEGORY_ORDER.find((categoryId) => !solvedCategories.includes(categoryId)) ?? null;
+
+      if (tutorialState.active && nextTutorialCategory && solvedCategoryId !== nextTutorialCategory) {
+        showToast('du bist schon voraus ;)');
+      }
+
       setSolvedCategories(newSolved);
 
       setGrid(grid.filter((tile) => tile.categoryId !== solvedCategoryId));
       setSelectedIds([]);
+
+      if (tutorialState.active) {
+        setTutorialState((prev) => ({
+          ...prev,
+          firstGuessMade: true,
+          step: computeTutorialStep(true, newSolved),
+        }));
+      }
 
       if (newSolved.length === 4) {
         setGameState('won');
@@ -392,6 +435,14 @@ export default function App() {
       };
       setWrongGuesses((prev) => [...prev, guessEntry]);
 
+      if (tutorialState.active && !tutorialState.firstGuessMade) {
+        setTutorialState((prev) => ({
+          ...prev,
+          firstGuessMade: true,
+          step: computeTutorialStep(true, solvedCategories),
+        }));
+      }
+
       if (maxSameCategory === 3) {
         showToast('Eins daneben...');
       }
@@ -399,25 +450,30 @@ export default function App() {
       setIsShaking(true);
       setTimeout(() => setIsShaking(false), 500);
 
-      const newMistakes = mistakesRemaining - 1;
-      setMistakesRemaining(newMistakes);
+      // Tutorial: unlimited lives
+      if (tutorialState.active) {
+        setMistakesRemaining(999);
+      } else {
+        const newMistakes = mistakesRemaining - 1;
+        setMistakesRemaining(newMistakes);
 
-      if (newMistakes === 0) {
-        setGameState('lost');
-        setSelectedIds([]);
+        if (newMistakes === 0) {
+          setGameState('lost');
+          setSelectedIds([]);
 
-        const remainingCats = categories.filter((c) => !solvedCategories.includes(c.id));
-        let delay = 1000;
-        const currentSolved = [...solvedCategories];
+          const remainingCats = categories.filter((c) => !solvedCategories.includes(c.id));
+          let delay = 1000;
+          const currentSolved = [...solvedCategories];
 
-        remainingCats.forEach((cat) => {
-          setTimeout(() => {
-            currentSolved.push(cat.id);
-            setSolvedCategories([...currentSolved]);
-            setGrid((prev) => prev.filter((tile) => tile.categoryId !== cat.id));
-          }, delay);
-          delay += 1000;
-        });
+          remainingCats.forEach((cat) => {
+            setTimeout(() => {
+              currentSolved.push(cat.id);
+              setSolvedCategories([...currentSolved]);
+              setGrid((prev) => prev.filter((tile) => tile.categoryId !== cat.id));
+            }, delay);
+            delay += 1000;
+          });
+        }
       }
     }
   };
@@ -513,28 +569,98 @@ export default function App() {
     }
   };
 
+  const startTutorial = () => {
+    setTutorialState({
+      active: true,
+      visible: true,
+      step: 'welcome',
+      firstGuessMade: false,
+    });
+    const tutorialCategories = getPuzzleByTutorial();
+    if (tutorialCategories) {
+      setCategories(tutorialCategories);
+      setCurrentPuzzleId(null);
+      const initialGrid: Tile[] = [];
+      tutorialCategories.forEach((cat) => {
+        cat.words.forEach((word, index) => {
+          initialGrid.push({
+            id: `${cat.id}-${index}`,
+            categoryId: cat.id,
+            word,
+          });
+        });
+      });
+      setGrid(shuffleArray(initialGrid));
+      setSolvedCategories([]);
+      setSelectedIds([]);
+      setWrongGuesses([]);
+      setMistakesRemaining(999);
+      resetDragState();
+      setGameState('playing');
+    }
+  };
+
+  const closeTutorialModal = () => {
+    setTutorialState((prev) => {
+      if (prev.step === 'completed') {
+        return {
+          ...prev,
+          active: false,
+          visible: false,
+        };
+      }
+
+      return {
+        ...prev,
+        visible: false,
+      };
+    });
+  };
+
+  const getPuzzleByTutorial = (): Category[] | null => {
+    const puzzle = TUTORIAL_PUZZLE[0] as Puzzle;
+    if (!puzzle || puzzle.length !== 4) {
+      return null;
+    }
+
+    return puzzle.map((group, index) => ({
+      id: `cat-${index}`,
+      color: CATEGORY_COLORS[index],
+      title: group.desc.trim().toUpperCase(),
+      words: group.words.map((word) => word.trim().toUpperCase()) as [string, string, string, string],
+    }));
+  };
+
   const renderSelect = () => (
-    <div className="w-full max-w-4xl mx-auto px-4 py-10 flex flex-col gap-8">
+    <div className="w-full max-w-5xl mx-auto px-4 py-10 flex flex-col gap-8">
       <div className="text-center">
         <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">Verbindungen</h1>
         <p className="text-stone-600 text-base md:text-lg">Wähle ein Rätsel aus und löse das 4x4-Feld.</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-        {(puzzles as Puzzle[]).map((_, index) => {
-          return (
-            <button
-              key={index}
-              onClick={() => startGame(index)}
-              className="aspect-square rounded-2xl border border-stone-300 bg-white/90 hover:bg-white hover:-translate-y-0.5 transition-all shadow-sm hover:shadow-md flex items-center justify-center"
-            >
-              <div className="text-xl md:text-2xl font-extrabold tracking-tight">Rätsel {index}</div>
-            </button>
-          );
-        })}
-      </div>
+      <div className="flex flex-col gap-6">
+        <button
+          onClick={startTutorial}
+          className="w-full max-w-xs mx-auto aspect-video rounded-2xl border-2 border-amber-500 bg-amber-50/50 hover:bg-amber-50 transition-all shadow-md hover:shadow-lg flex flex-col items-center justify-center gap-2 p-4"
+        >
+          <div className="text-lg font-bold tracking-tight text-amber-900">🎓 Tutorial</div>
+          <div className="text-xs text-amber-700">Lerne wie man spielt</div>
+        </button>
 
-      <div className="text-sm text-stone-500 text-center">Geteilte Links funktionieren mit /puzzle/:id</div>
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {(puzzles as Puzzle[]).map((_, index) => {
+            return (
+              <button
+                key={index}
+                onClick={() => startGame(index)}
+                className="aspect-square rounded-xl border border-stone-300 bg-white/90 hover:bg-white hover:-translate-y-0.5 transition-all shadow-sm hover:shadow-md flex items-center justify-center text-sm md:text-base font-bold"
+              >
+                {index}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 
@@ -720,6 +846,24 @@ export default function App() {
         >
           <AutoFitTileWord word={draggedTile.word} />
         </div>
+      )}
+
+      {tutorialState.active && !tutorialState.visible && (
+        <button
+          onClick={() => setTutorialState((prev) => ({ ...prev, visible: true }))}
+          className="fixed right-4 top-4 z-[120] flex h-12 w-12 items-center justify-center rounded-full border border-amber-400 bg-amber-200 text-2xl text-amber-950 shadow-lg shadow-amber-400/25 transition-transform hover:-translate-y-0.5 hover:bg-amber-100"
+          aria-label="Tutorial anzeigen"
+          title="Tutorial anzeigen"
+        >
+          💡
+        </button>
+      )}
+
+      {tutorialState.active && tutorialState.visible && (
+        <TutorialModal
+          step={tutorialState.step}
+          onClose={closeTutorialModal}
+        />
       )}
     </div>
   );
