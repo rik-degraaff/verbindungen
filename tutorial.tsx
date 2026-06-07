@@ -3,6 +3,8 @@ import React from 'react';
 export type TutorialStep =
   | 'welcome'
   | 'first-feedback'
+  | 'clear-selection-step'
+  | 'yellow-guess'
   | 'shuffle-step'
   | 'reorder-step'
   | 'green-guess'
@@ -16,6 +18,7 @@ export type TutorialState = {
   visible: boolean;
   step: TutorialStep;
   firstGuessMade: boolean;
+  didDeselectAll: boolean;
   didShuffle: boolean;
   didDragSwap: boolean;
   didReplayFailedGuess: boolean;
@@ -52,10 +55,12 @@ export const TUTORIAL_COLOR_GUIDE: Record<TutorialColorKey, { label: string; hin
 
 export const getExpectedTutorialCategoryId = (
   solvedCategoryIds: string[],
+  didDeselectAll: boolean,
   didShuffle: boolean,
   didDragSwap: boolean,
   didReplayFailedGuess: boolean
 ): string | null => {
+  if (!didDeselectAll) return null;
   if (!solvedCategoryIds.includes('cat-0')) return 'cat-0';
   if (!didShuffle || !didDragSwap) return null;
   if (!solvedCategoryIds.includes('cat-1')) return 'cat-1';
@@ -68,6 +73,7 @@ export const getExpectedTutorialCategoryId = (
 export const getClosedTutorialHint = (
   step: TutorialStep,
   solvedCategoryIds: string[],
+  didDeselectAll: boolean,
   didShuffle: boolean,
   didDragSwap: boolean,
   firstGuessMade: boolean,
@@ -76,6 +82,9 @@ export const getClosedTutorialHint = (
   if (!firstGuessMade) return 'Hinweis Start: APFEL, LAMPE, LATERNE, NEON. Wichtig: genau diese 4 prüfen.';
 
   const solved = new Set(solvedCategoryIds);
+  if (!didDeselectAll) {
+    return 'Geheimer Tipp: Nur 1 dieser 4 gehört zu Gelb. Hebe die Auswahl jetzt komplett auf.';
+  }
   if (!solved.has('cat-0')) {
     return `Hinweis ${TUTORIAL_COLOR_GUIDE.yellow.label}: ${TUTORIAL_COLOR_GUIDE.yellow.hint} Typ: ${TUTORIAL_COLOR_GUIDE.yellow.categoryType}`;
   }
@@ -105,6 +114,7 @@ export const getClosedTutorialHint = (
 export const computeTutorialStep = (
   firstGuessMade: boolean,
   solvedCategoryIds: string[],
+  didDeselectAll: boolean,
   didShuffle: boolean,
   didDragSwap: boolean,
   didReplayFailedGuess: boolean
@@ -112,7 +122,8 @@ export const computeTutorialStep = (
   if (!firstGuessMade) return 'welcome';
 
   const solved = new Set(solvedCategoryIds);
-  if (!solved.has('cat-0')) return 'first-feedback';
+  if (!didDeselectAll) return stepAfterFirstFeedback(solvedCategoryIds);
+  if (!solved.has('cat-0')) return 'yellow-guess';
   if (!didShuffle) return 'shuffle-step';
   if (!didDragSwap) return 'reorder-step';
   if (!solved.has('cat-1')) return 'green-guess';
@@ -120,6 +131,12 @@ export const computeTutorialStep = (
   if (!solved.has('cat-2')) return 'blue-guess';
   if (!solved.has('cat-3')) return 'purple-intro';
   return 'completed';
+};
+
+const stepAfterFirstFeedback = (solvedCategoryIds: string[]): TutorialStep => {
+  const solved = new Set(solvedCategoryIds);
+  if (!solved.has('cat-0')) return 'clear-selection-step';
+  return 'clear-selection-step';
 };
 
 interface TutorialModalProps {
@@ -178,13 +195,34 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Genau so sieht ein fast richtiger Versuch aus: drei passen zusammen, einer nicht.</p>
+          <p>Ich gebe dir noch einen geheimen Tipp gratis dazu.</p>
+          <p>Von diesen vier Wörtern gehört nur <strong>eins</strong> zur ersten Kategorie, die du gleich lösen wirst.</p>
+          <p>Du kannst also die Auswahl jetzt ruhig komplett aufheben.</p>
+        </div>
+      );
+      break;
+    case 'clear-selection-step':
+      title = 'Schritt 1: Auswahl aufheben';
+      body = (
+        <div className="space-y-4 text-sm text-stone-700">
+          <p>Drücke jetzt auf <strong>Auswahl aufheben</strong>.</p>
+          <p>Geheimer Tipp auf's Haus: Von den vier markierten Wörtern gehört nur eins zur ersten richtigen Kategorie.</p>
+          <p>Darum lohnt es sich, alle vier erst einmal abzuwählen.</p>
+        </div>
+      );
+      break;
+    case 'yellow-guess':
+      title = 'Schritt 2: Gelbe Gruppe';
+      body = (
+        <div className="space-y-4 text-sm text-stone-700">
+          <p>Jetzt löst du die erste richtige Gruppe.</p>
           <p><strong>Hinweis Gelb:</strong> {TUTORIAL_COLOR_GUIDE.yellow.hint}</p>
           <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.yellow.categoryType}</p>
         </div>
       );
       break;
     case 'shuffle-step':
-      title = 'Schritt 1: Mischen';
+      title = 'Schritt 3: Mischen';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Drücke jetzt einmal auf den ↻-Button.</p>
@@ -193,7 +231,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       );
       break;
     case 'reorder-step':
-      title = 'Schritt 2: Neu anordnen';
+      title = 'Schritt 4: Neu anordnen';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Verschiebe jetzt genau ein Wort per langem Drücken und Ziehen.</p>
@@ -208,7 +246,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       );
       break;
     case 'green-guess':
-      title = 'Schritt 3: Grüne Gruppe';
+      title = 'Schritt 5: Grüne Gruppe';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Jetzt darfst du die nächste Gruppe lösen.</p>
@@ -218,7 +256,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       );
       break;
     case 'failed-guess-replay':
-      title = 'Vor Blau: Alten Versuch nutzen';
+      title = 'Schritt 6: Alten Versuch nutzen';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Tippe jetzt unten auf deinen ersten Fehlversuch: „APFEL, NEON, LATERNE, LAMPE“.</p>
@@ -228,7 +266,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       );
       break;
     case 'blue-guess':
-      title = 'Schritt 4: Blaue Gruppe';
+      title = 'Schritt 7: Blaue Gruppe';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p><strong>Hinweis Blau:</strong> {TUTORIAL_COLOR_GUIDE.blue.hint}</p>
@@ -237,7 +275,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       );
       break;
     case 'purple-intro':
-      title = 'Letzter Schritt: Lila';
+      title = 'Schritt 8: Lila';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Ab hier kannst du im Tutorial nicht mehr verlieren.</p>

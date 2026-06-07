@@ -241,6 +241,7 @@ export default function App() {
     visible: false,
     step: 'welcome',
     firstGuessMade: false,
+    didDeselectAll: false,
     didShuffle: false,
     didDragSwap: false,
     didReplayFailedGuess: false,
@@ -332,6 +333,7 @@ export default function App() {
       visible: false,
       step: 'welcome',
       firstGuessMade: false,
+      didDeselectAll: false,
       didShuffle: false,
       didDragSwap: false,
       didReplayFailedGuess: false,
@@ -383,6 +385,7 @@ export default function App() {
           step: computeTutorialStep(
             prev.firstGuessMade,
             solvedCategories,
+            prev.didDeselectAll,
             nextDidShuffle,
             prev.didDragSwap,
             prev.didReplayFailedGuess
@@ -405,7 +408,24 @@ export default function App() {
     }
   };
 
-  const handleDeselectAll = () => setSelectedIds([]);
+  const handleDeselectAll = () => {
+    setSelectedIds([]);
+
+    if (tutorialState.active && !tutorialState.didDeselectAll) {
+      setTutorialState((prev) => ({
+        ...prev,
+        didDeselectAll: true,
+        step: computeTutorialStep(
+          prev.firstGuessMade,
+          solvedCategories,
+          true,
+          prev.didShuffle,
+          prev.didDragSwap,
+          prev.didReplayFailedGuess
+        ),
+      }));
+    }
+  };
 
   const handleShare = async () => {
     if (currentPuzzleId === null) return;
@@ -451,13 +471,16 @@ export default function App() {
       if (tutorialState.active) {
         const expectedCategoryId = getExpectedTutorialCategoryId(
           solvedCategories,
+          tutorialState.didDeselectAll,
           tutorialState.didShuffle,
           tutorialState.didDragSwap,
           tutorialState.didReplayFailedGuess
         );
 
         if (expectedCategoryId === null) {
-          if (!tutorialState.didShuffle) {
+          if (!tutorialState.didDeselectAll) {
+            showToast('Hebe zuerst die Auswahl komplett auf.');
+          } else if (!tutorialState.didShuffle) {
             showToast('Drücke zuerst auf ↻.');
           } else if (!tutorialState.didDragSwap) {
             showToast('Verschiebe zuerst ein Wort per Ziehen.');
@@ -491,6 +514,7 @@ export default function App() {
           step: computeTutorialStep(
             true,
             newSolved,
+            prev.didDeselectAll,
             prev.didShuffle,
             prev.didDragSwap,
             prev.didReplayFailedGuess
@@ -521,6 +545,7 @@ export default function App() {
           step: computeTutorialStep(
             true,
             solvedCategories,
+            prev.didDeselectAll,
             prev.didShuffle,
             prev.didDragSwap,
             prev.didReplayFailedGuess
@@ -581,6 +606,7 @@ export default function App() {
           step: computeTutorialStep(
             prev.firstGuessMade,
             solvedCategories,
+            prev.didDeselectAll,
             prev.didShuffle,
             prev.didDragSwap,
             nextDidReplayFailedGuess
@@ -650,6 +676,7 @@ export default function App() {
               step: computeTutorialStep(
                 prev.firstGuessMade,
                 solvedCategories,
+                prev.didDeselectAll,
                 prev.didShuffle,
                 nextDidDragSwap,
                 prev.didReplayFailedGuess
@@ -695,6 +722,7 @@ export default function App() {
       visible: true,
       step: 'welcome',
       firstGuessMade: false,
+      didDeselectAll: false,
       didShuffle: false,
       didDragSwap: false,
       didReplayFailedGuess: false,
@@ -746,6 +774,7 @@ export default function App() {
     return getClosedTutorialHint(
       tutorialState.step,
       solvedCategories,
+      tutorialState.didDeselectAll,
       tutorialState.didShuffle,
       tutorialState.didDragSwap,
       tutorialState.firstGuessMade,
@@ -899,7 +928,12 @@ export default function App() {
           disabled={selectedIds.length === 0 || gameState !== 'playing' || !!draggingTileId}
           aria-label="Auswahl aufheben"
           title="Auswahl aufheben"
-          className="border border-black rounded-full w-11 h-11 font-semibold text-base hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          className={[
+            'border border-black rounded-full w-11 h-11 font-semibold text-base hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center',
+            tutorialState.active && tutorialState.step === 'clear-selection-step' ? 'ring-2 ring-amber-500 ring-offset-2 bg-amber-100' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           ⊘
         </button>
