@@ -102,6 +102,9 @@ function AutoFitTileWord({ word }: { word: string }) {
       const maxFontSize = 13;
       const minFontSize = 6;
       const breakThreshold = 8;
+      const widthSafetyPx = 3;
+      const availableWidth = Math.max(0, container.clientWidth - widthSafetyPx);
+      const availableHeight = container.clientHeight;
       let fontSize = maxFontSize;
 
       text.style.lineHeight = '1.1';
@@ -113,20 +116,20 @@ function AutoFitTileWord({ word }: { word: string }) {
       text.style.hyphens = 'manual';
       text.style.fontSize = `${fontSize}px`;
 
-      while (fontSize > breakThreshold && text.scrollWidth > container.clientWidth) {
+      while (fontSize > breakThreshold && text.scrollWidth > availableWidth) {
         fontSize -= 1;
         text.style.fontSize = `${fontSize}px`;
       }
 
       // Only allow wrapping at explicit soft-hyphen hints as a last resort below threshold.
-      if (text.scrollWidth > container.clientWidth) {
+      if (text.scrollWidth > availableWidth) {
         text.style.whiteSpace = 'normal';
         text.style.overflowWrap = 'normal';
         text.style.wordBreak = 'normal';
 
         while (
           fontSize > minFontSize &&
-          (text.scrollWidth > container.clientWidth || text.scrollHeight > container.clientHeight)
+          (text.scrollWidth > availableWidth || text.scrollHeight > availableHeight)
         ) {
           fontSize -= 1;
           text.style.fontSize = `${fontSize}px`;
@@ -143,13 +146,64 @@ function AutoFitTileWord({ word }: { word: string }) {
   }, [renderedWord]);
 
   return (
-    <div ref={containerRef} className="h-full w-full overflow-hidden px-0.5 py-0.5 flex items-center justify-center">
+    <div ref={containerRef} className="h-full w-full overflow-hidden px-1 py-0.5 flex items-center justify-center">
       <span
         ref={textRef}
         className="block max-h-full max-w-full text-center font-bold leading-tight"
       >
         {renderedWord}
       </span>
+    </div>
+  );
+}
+
+function AutoFitSolvedCategory({ title, words }: { title: string; words: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const wordsRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const titleEl = titleRef.current;
+    const wordsEl = wordsRef.current;
+    if (!container || !titleEl || !wordsEl) return;
+
+    const fit = () => {
+      let titleFontSize = 18;
+      let wordsFontSize = 13;
+      const minTitleFontSize = 11;
+      const minWordsFontSize = 8;
+
+      titleEl.style.fontSize = `${titleFontSize}px`;
+      wordsEl.style.fontSize = `${wordsFontSize}px`;
+
+      while (
+        (container.scrollHeight > container.clientHeight || wordsEl.scrollWidth > wordsEl.clientWidth) &&
+        (titleFontSize > minTitleFontSize || wordsFontSize > minWordsFontSize)
+      ) {
+        if (titleFontSize > minTitleFontSize) titleFontSize -= 1;
+        if (wordsFontSize > minWordsFontSize) wordsFontSize -= 1;
+        titleEl.style.fontSize = `${titleFontSize}px`;
+        wordsEl.style.fontSize = `${wordsFontSize}px`;
+      }
+    };
+
+    fit();
+
+    const observer = new ResizeObserver(() => fit());
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [title, words]);
+
+  return (
+    <div ref={containerRef} className="h-full w-full overflow-hidden px-1">
+      <div ref={titleRef} className="font-bold text-center leading-tight truncate">
+        {title}
+      </div>
+      <div ref={wordsRef} className="mt-1 text-center leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+        {words.map((w) => stripBreakHints(w)).join(', ')}
+      </div>
     </div>
   );
 }
@@ -505,10 +559,7 @@ export default function App() {
               className="w-full min-h-20 rounded-xl flex flex-col items-center justify-center text-center p-3 shadow-tile animate-[bounce_0.3s_ease-out]"
               style={{ backgroundColor: category.color }}
             >
-              <div className="font-bold text-lg mb-1">{category.title}</div>
-              <div className="text-sm whitespace-nowrap overflow-hidden text-ellipsis w-full">
-                {category.words.join(', ')}
-              </div>
+              <AutoFitSolvedCategory title={category.title} words={category.words} />
             </div>
           );
         })}
