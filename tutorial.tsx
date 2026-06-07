@@ -34,22 +34,22 @@ export const TUTORIAL_COLOR_GUIDE: Record<TutorialColorKey, { label: string; hin
   yellow: {
     label: 'Gelb',
     hint: 'Denk an typische Obstsorten.',
-    categoryType: 'Direkte Oberkategorie (gleiche Art von Dingen).',
+    categoryType: 'Eine direkte, leicht erkennbare Sachgruppe.',
   },
   green: {
     label: 'Grün',
     hint: 'Such Dinge, die mit Wasser zu tun haben.',
-    categoryType: 'Thema/Anwendungsfeld (gleicher Kontext).',
+    categoryType: 'Ein gemeinsames Thema oder ein gemeinsamer Zusammenhang.',
   },
   blue: {
     label: 'Blau',
     hint: 'Finde Wörter, die mit Leuchten zusammenhängen.',
-    categoryType: 'Muster oder Wortfeld (nicht nur offensichtliche Synonyme).',
+    categoryType: 'Ein Muster, ein Wortfeld oder eine indirekte Verbindung.',
   },
   purple: {
     label: 'Lila',
     hint: 'Achte auf sehr indirekte sprachliche Beziehungen.',
-    categoryType: 'Meta-/Wortform-Verbindungen statt offensichtlicher Sachgruppen.',
+    categoryType: 'Eine sprachliche oder sehr versteckte Verbindung.',
   },
 };
 
@@ -168,36 +168,36 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
 
   switch (step) {
     case 'welcome':
-      title = 'Erster Zug';
+      title = 'So funktioniert das Spiel';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Schließ dieses Fenster. Die Glühbirne oben rechts bringt es zurück.</p>
-          <p>Für den ersten Zug suchst du diese vier Wörter:</p>
+          <p>In diesem Spiel suchst du vier Gruppen mit je vier zusammengehörenden Wörtern.</p>
+          <p>Du tippst Wörter an, um sie auszuwählen. Wenn vier markiert sind, prüfst du deinen Versuch mit <strong>Prüfen</strong>.</p>
           <div className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3">
             <HandHint motion="tap" />
             <TargetWords />
           </div>
           <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-3">
-            <p className="font-semibold">Hinweise pro Farbe:</p>
+            <p className="font-semibold">Was die Farben meistens bedeuten:</p>
             <ul className="space-y-1 text-xs leading-snug">
-              <li><strong>Gelb:</strong> {TUTORIAL_COLOR_GUIDE.yellow.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.yellow.categoryType}</li>
-              <li><strong>Grün:</strong> {TUTORIAL_COLOR_GUIDE.green.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.green.categoryType}</li>
-              <li><strong>Blau:</strong> {TUTORIAL_COLOR_GUIDE.blue.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.blue.categoryType}</li>
-              <li><strong>Lila:</strong> {TUTORIAL_COLOR_GUIDE.purple.hint} <em>Typ:</em> {TUTORIAL_COLOR_GUIDE.purple.categoryType}</li>
+              <li><strong>Gelb:</strong> meist die einfachste und direkteste Gruppe.</li>
+              <li><strong>Grün:</strong> etwas kniffliger, oft über ein gemeinsames Thema verbunden.</li>
+              <li><strong>Blau:</strong> häufig ein Muster, ein Ausdruck oder eine indirekte Verbindung.</li>
+              <li><strong>Lila:</strong> meistens die schwerste Gruppe und oft sprachlich oder sehr versteckt.</li>
             </ul>
           </div>
-          <p>Dann schließe das Fenster und prüfe genau diese vier.</p>
+          <p>Für den ersten Schritt gebe ich dir vier Wörter vor. Schließ dieses Fenster und prüfe genau diese vier.</p>
+          <p>Die Glühbirne oben rechts bringt das Tutorial jederzeit zurück.</p>
         </div>
       );
       break;
     case 'first-feedback':
-      title = 'Eins daneben';
+      title = 'Knapp daneben';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Genau so sieht ein fast richtiger Versuch aus: drei passen zusammen, einer nicht.</p>
-          <p>Ich gebe dir noch einen geheimen Tipp gratis dazu.</p>
-          <p>Von diesen vier Wörtern gehört nur <strong>eins</strong> zur ersten Kategorie, die du gleich lösen wirst.</p>
-          <p>Du kannst also die Auswahl jetzt ruhig komplett aufheben.</p>
+          <p>Das war absichtlich fast richtig: Drei dieser Wörter gehören zusammen, eins nicht.</p>
+          <p>So erkennst du einen Versuch, der nur <strong>eins daneben</strong> ist.</p>
+          <p>Ich gebe dir noch einen kleinen Tipp dazu: Von diesen vier Wörtern gehört nur <strong>eins</strong> zur ersten echten Gruppe, die du gleich lösen wirst.</p>
         </div>
       );
       break;
@@ -206,8 +206,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Drücke jetzt auf <strong>Auswahl aufheben</strong>.</p>
-          <p>Geheimer Tipp auf's Haus: Von den vier markierten Wörtern gehört nur eins zur ersten richtigen Kategorie.</p>
-          <p>Darum lohnt es sich, alle vier erst einmal abzuwählen.</p>
+          <p>Geheimer Tipp auf's Haus: Von den vier markierten Wörtern gehört nur eins zur ersten richtigen Gruppe.</p>
+          <p>Darum ist es sinnvoll, die Auswahl erst einmal komplett zu leeren und neu zu starten.</p>
         </div>
       );
       break;
@@ -215,7 +215,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       title = 'Schritt 2: Gelbe Gruppe';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Jetzt löst du die erste richtige Gruppe.</p>
+          <p>Jetzt suchst du die erste richtige Gruppe und prüfst sie.</p>
           <p><strong>Hinweis Gelb:</strong> {TUTORIAL_COLOR_GUIDE.yellow.hint}</p>
           <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.yellow.categoryType}</p>
         </div>
@@ -226,7 +226,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Drücke jetzt einmal auf den ↻-Button.</p>
-          <p>Damit lernst du, wie du bei Blockaden neue Anordnungen erzeugst.</p>
+          <p>Damit mischst du die Wörter neu. Das ist nützlich, wenn du dich an einer Anordnung festgesehen hast.</p>
         </div>
       );
       break;
@@ -239,7 +239,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
             <HandHint motion="drag" />
             <div className="space-y-1">
               <p className="font-semibold">Lange drücken verschiebt ein Wort.</p>
-              <p>Das hilft beim visuellen Sortieren von Ideen.</p>
+              <p>So kannst du Wörter nebeneinander legen, die für dich zusammenpassen könnten.</p>
             </div>
           </div>
         </div>
@@ -249,7 +249,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       title = 'Schritt 5: Grüne Gruppe';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Jetzt darfst du die nächste Gruppe lösen.</p>
+          <p>Jetzt suchst du die nächste richtige Gruppe.</p>
           <p><strong>Hinweis Grün:</strong> {TUTORIAL_COLOR_GUIDE.green.hint}</p>
           <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.green.categoryType}</p>
         </div>
@@ -260,8 +260,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Tippe jetzt unten auf deinen ersten Fehlversuch: „APFEL, NEON, LATERNE, LAMPE“.</p>
-          <p>Das wählt automatisch die Wörter aus, die davon noch verfügbar sind.</p>
-          <p>Wichtig: Die drei übrig gebliebenen Wörter müssen zusammengehören, weil der Versuch nur 1 daneben war.</p>
+          <p>Dadurch werden die Wörter aus diesem Versuch wieder ausgewählt, soweit sie noch im Feld liegen.</p>
+          <p>Wichtig: Die drei noch verfügbaren Wörter daraus müssen zusammengehören, weil dieser Versuch nur eins daneben war.</p>
         </div>
       );
       break;
@@ -269,6 +269,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       title = 'Schritt 7: Blaue Gruppe';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
+          <p>Jetzt ergänzt du aus diesem fast richtigen Versuch die fehlende vierte Verbindung.</p>
           <p><strong>Hinweis Blau:</strong> {TUTORIAL_COLOR_GUIDE.blue.hint}</p>
           <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.blue.categoryType}</p>
         </div>
@@ -279,7 +280,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       body = (
         <div className="space-y-4 text-sm text-stone-700">
           <p>Ab hier kannst du im Tutorial nicht mehr verlieren.</p>
-          <p>Versuch zuerst selbst zu erkennen, was die letzte Kategorie sein könnte.</p>
+          <p>Versuch zuerst selbst herauszufinden, was die letzte Kategorie sein könnte.</p>
           <p><strong>Hinweis Lila:</strong> {TUTORIAL_COLOR_GUIDE.purple.hint}</p>
           <p><strong>Kategorie-Typ:</strong> {TUTORIAL_COLOR_GUIDE.purple.categoryType}</p>
         </div>
@@ -289,8 +290,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ step, onClose }) =
       title = 'Geschafft';
       body = (
         <div className="space-y-4 text-sm text-stone-700">
-          <p>Du kennst jetzt den Ablauf.</p>
-          <p>Ab jetzt kannst du normale Rätsel spielen.</p>
+          <p>Du hast die wichtigsten Regeln und Hilfen kennengelernt.</p>
+          <p>Jetzt bist du bereit für normale Rätsel.</p>
         </div>
       );
       break;
