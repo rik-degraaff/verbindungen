@@ -1,0 +1,14 @@
+[
+  [
+    { "desc": "GESTREIFT", "words": ["BIENE", "ZEBRA", "BARCODE", "ZUCKERSTANGE"] },
+    { "desc": "HÄUFIG GESTRICKT", "words": ["SOCKE", "MÜTZE", "DECKE", "SCHAL"] },
+    { "desc": "HERSTELLER VON SÜSSIGKEITEN", "words": ["KINDER", "STORCK", "RITTER", "MARS"] },
+    { "desc": "ENDEN MIT FAHRRADTEILE", "words": ["LICHTERKETTE", "JUNGLENKER", "WESTERNSATTEL", "DACHSE"] }
+  ],
+  [
+    { "desc": "SYMBOLE FÜR BABYS", "words": ["STORCH", "WINDEL", "SCHNULLER", "TEDDY"] },
+    { "desc": "KOSENAMEN", "words": ["BABY", "SPÄTZCHEN", "SCHATZ", "ENGEL"] },
+    { "desc": "NICKNAME FÜR AUTOS", "words": ["KÄFER", "ENTE", "BULLI", "TRABI"] },
+    { "desc": "WASSER_", "words": ["HAHN", "RUTSCHE", "SKI", "FALL"] }
+  ]
+]
